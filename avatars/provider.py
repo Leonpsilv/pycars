@@ -36,7 +36,6 @@ class AWSProvider:
         )
         bucket=env("BUCKET_NAME")
         try:
-            print(f"bucket: {bucket}")
             s3_client.delete_object(Bucket=bucket, Key=path)
             return True
         except ClientError as error:
