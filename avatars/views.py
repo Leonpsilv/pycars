@@ -24,33 +24,36 @@ class AvatarViewSet(viewsets.ModelViewSet):
             if not "file" in request.data:
                 return Response({"file": ["a file must be informed."]}, status=400)
 
-            if not "user_id" in request.data:
-                return Response({"user": ["a user must be informed"]}, status=400)
+            # if not "user_id" in request.data:
+            #     return Response({"user": ["a user must be informed"]}, status=400)
 
             file = request.data["file"]
             user = self.request.user
-            print(user)
+            filename = f"{user.id}-{datetime.now().strftime('%H%M%S')}"
 
             photo_path = f'./files/avatar-{datetime.now().strftime("%H%M%S-%F")}.png'
             with open(photo_path, "wb+") as archive:
                 archive.write(file.file.read())
 
             url_photo = awsProvider.upload_file_s3(
-                f"users-avatar/{user.id}.png", photo_path
+                f"users-avatar/{filename}.png", photo_path
             )
             os.remove(photo_path)
 
             data = {
-                "user_id": request.data["user_id"],
-                "file": request.data["file"],
+                "user_id": user.id,
+                "file": file,
                 "url": url_photo,
+                "filename": filename
             }
             serializer = AvatarSerializer(data=data)
 
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data, status=201)
-
+            
+            path = f"users-avatar/{filename}.png"
+            awsProvider.delete_file(path)
             return Response(serializer.errors, status=400)
         except Exception as e:
             return Response(f"Failure to process avatar data: {e}", status=500)
