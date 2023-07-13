@@ -12,6 +12,7 @@ from avatars.serializers import AvatarSerializer
 
 awsProvider = AWSProvider()
 
+
 class AvatarViewSet(viewsets.ModelViewSet):
     queryset = AvatarModel.objects.all()
     serializer_class = AvatarSerializer
@@ -23,9 +24,6 @@ class AvatarViewSet(viewsets.ModelViewSet):
         try:
             if not "file" in request.data:
                 return Response({"file": ["a file must be informed."]}, status=400)
-
-            # if not "user_id" in request.data:
-            #     return Response({"user": ["a user must be informed"]}, status=400)
 
             file = request.data["file"]
             user = self.request.user
@@ -40,20 +38,49 @@ class AvatarViewSet(viewsets.ModelViewSet):
             )
             os.remove(photo_path)
 
-            data = {
-                "user_id": user.id,
-                "file": file,
-                "url": url_photo,
-                "filename": filename
-            }
+            data = {"user_id": user.id, "url": url_photo, "filename": filename}
             serializer = AvatarSerializer(data=data)
 
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data, status=201)
-            
+
             path = f"users-avatar/{filename}.png"
             awsProvider.delete_file(path)
             return Response(serializer.errors, status=400)
         except Exception as e:
-            return Response(f"Failure to process avatar data: {e}", status=500)
+            return Response({"detail" :f"Failure to process avatar data: {e}"} , status=500)
+
+    def update(self, request, pk=None):
+        try:
+            instance = self.get_object()
+            old_file = self.get_serializer(instance).data
+            old_file_path = f"users-avatar/{old_file['filename']}.png"
+            user = self.request.user
+            if user.id != old_file['user_id']:
+                return Response({"detail" :f"this avatar does not belong to the logged user"}, status=400)
+
+            data = {}
+            if "file" in request.data:
+                file = request.data["file"]
+                data["filename"] = f"{user.id}-{datetime.now().strftime('%H%M%S')}"
+                new_file_path = (
+                    f'./files/avatar-{datetime.now().strftime("%H%M%S-%F")}.png'
+                )
+
+                with open(new_file_path, "wb+") as archive:
+                    archive.write(file.file.read())
+
+                new_file_url = awsProvider.upload_file_s3(
+                    f"users-avatar/{data['filename']}.png", new_file_path
+                )
+                data["url"] = new_file_url
+                os.remove(new_file_path)
+                awsProvider.delete_file(old_file_path)
+
+            serializer = self.get_serializer(instance, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"detail" :f"Failure to update avatar data: {e}"} , status=500)
