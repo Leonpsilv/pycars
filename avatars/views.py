@@ -14,7 +14,7 @@ awsProvider = AWSProvider()
 
 
 class AvatarViewSet(viewsets.ModelViewSet):
-    queryset = AvatarModel.objects.all()
+    queryset = AvatarModel.objects.all().order_by("created")
     serializer_class = AvatarSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend]
@@ -82,5 +82,21 @@ class AvatarViewSet(viewsets.ModelViewSet):
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
             return Response(serializer.data)
+        except Exception as e:
+            return Response({"detail" :f"Failure to update avatar data: {e}"} , status=500)
+        
+    def destroy(self, request, pk=None):
+        try:
+            instance = self.get_object()
+            old_file = self.get_serializer(instance).data
+            old_file_path = f"users-avatar/{old_file['filename']}.png"
+            user = self.request.user
+            if user.id != old_file['user_id']:
+                return Response({"detail" :f"this avatar does not belong to the logged user"}, status=400)
+
+            awsProvider.delete_file(old_file_path)
+
+            self.perform_destroy(instance)
+            return Response(status=204)
         except Exception as e:
             return Response({"detail" :f"Failure to update avatar data: {e}"} , status=500)
