@@ -20,6 +20,7 @@ from django.urls import include, path
 from rest_framework import routers
 from users import views as UserViews
 from avatars import views as avatarViews
+from cars import views as carViews
 
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -30,6 +31,7 @@ from rest_framework_simplejwt.views import (
 router = routers.DefaultRouter()
 router.register(r"users", UserViews.UserViewSet, basename="User")
 router.register(r"avatar", avatarViews.AvatarViewSet, basename="Avatar")
+router.register(r"cars", carViews.CarViewSet, basename="Car")
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.

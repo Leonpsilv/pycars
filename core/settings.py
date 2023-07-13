@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "django_filters",
     "users",
     "avatars",
+    "cars",
 ]
 
 AUTH_USER_MODEL = "users.User"
